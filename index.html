@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>المعلم الروبوتي</title>
+<style>
+:root{--bg:#071126;--panel:#0b1220;--accent:#635bff;--gold:#f59e0b;--text:#e6eef8}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:system-ui,'Segoe UI',Roboto,'Noto Naskh Arabic',sans-serif;background:linear-gradient(180deg,#030416 0%, #071126 100%);color:var(--text)}
+.container{max-width:920px;margin:20px auto;padding:12px;display:flex;flex-direction:column;gap:12px;height:calc(100vh - 40px)}
+.header{background:linear-gradient(90deg,var(--accent),#4f46e5);padding:16px;border-radius:12px;color:white;display:flex;justify-content:space-between;align-items:center}
+.header .title{font-size:18px;font-weight:800}
+.header .sub{font-size:13px;color:var(--gold);font-weight:700}
+.card{background:var(--panel);border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,0.6);flex:1;display:flex;flex-direction:column;overflow:hidden}
+.chat{display:flex;flex-direction:column;height:100%}
+.messages{flex:1;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:78%;padding:10px 14px;border-radius:12px;line-height:1.4;word-break:break-word}
+.msg.user{align-self:flex-end;background:#5b6cff;color:#fff;border-bottom-right-radius:4px}
+.msg.bot{align-self:flex-start;background:#ffd86b;color:#000;border-bottom-left-radius:4px}
+.input-area{display:flex;gap:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.03)}
+.input-area input{flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text);font-size:15px}
+.input-area button{padding:10px 14px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+.footer{margin-top:8px;text-align:center;color:var(--gold);font-weight:800}
+.small{font-size:13px;color:#9aa7bd}
+</style>
+</head>
+<body>
+<div class="container" role="application">
+  <div class="header" role="banner">
+    <div>
+      <div class="title">🏫 مدرسة الشهيد الرقيب بهاء علي عبد الجبار</div>
+      <div class="small">المعلم الروبوتي</div>
+    </div>
+    <div class="sub">🎓 مدير المدرسة: أ/ مظهر ماهر</div>
+  </div>
+
+  <div class="card" id="card">
+    <div id="chat" class="chat" aria-hidden="false">
+      <div class="small" style="margin-bottom:6px">اكتب سؤالك وسيجيبك المعلم الروبوتي — يبتدي كل رد بـ "بسم الله الرحمن الرحيم".</div>
+      <div id="messages" class="messages" role="log" aria-live="polite"></div>
+      <div class="input-area" role="region">
+        <input id="inputBox" placeholder="اكتب سؤالك هنا..." aria-label="نص السؤال" />
+        <button id="sendBtn">إرسال</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">مع تحياتي — <span style="color:var(--gold);font-weight:800">Amr Salah</span></div>
+</div>
+
+<script>
+const messages = document.getElementById('messages');
+const inputBox = document.getElementById('inputBox');
+const sendBtn = document.getElementById('sendBtn');
+
+function showMessage(html, who='bot') {
+  const d = document.createElement('div');
+  d.className = 'msg ' + (who==='user'?'user':'bot');
+  d.innerHTML = html;
+  messages.appendChild(d);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function speakLikeSaidi(text){
+  let body = text;
+  if(!/مع تحياتي،/i.test(body)) body += '<br><br><em>مع تحياتي، المعلم الروبوتي — Amr Salah</em>';
+  return `<strong>المعلم الروبوتي:</strong><br>${body}`;
+}
+
+function escapeHtml(s){ return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+async function onSend(){
+  const txt = inputBox.value.trim();
+  if(!txt) return;
+  showMessage(escapeHtml(txt), 'user');
+  inputBox.value = '';
+
+  const lower = txt.toLowerCase();
+
+  // local special-case for "ازيك ... روبوت"
+  if( (lower.includes('ازيك') || lower.includes('إزيك') || lower.includes('عامل')) && lower.includes('روبوت') ){
+    setTimeout(()=> showMessage(speakLikeSaidi('بسم الله الرحمن الرحيم<br>الحمد لله بخير، انت اخبارك ايه؟')), 400);
+    return;
+  }
+
+  try {
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ message: txt })
+    });
+    const data = await res.json();
+    setTimeout(()=> showMessage(speakLikeSaidi(data.reply)), 600);
+  } catch(e){
+    setTimeout(()=> showMessage(speakLikeSaidi('بسم الله الرحمن الرحيم<br>حصل خطأ أثناء الاتصال بالسيرفر')) ,500);
+  }
+}
+
+sendBtn.addEventListener('click', onSend);
+inputBox.addEventListener('keydown', e=>{ if(e.key==='Enter') onSend(); });
+
+/* initial greeting */
+showMessage(speakLikeSaidi('بسم الله الرحمن الرحيم<br>أهلاً بيك، اسأل اللي نفسك فيه!'));
+</script>
+</body>
+</html>
